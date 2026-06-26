@@ -15,6 +15,8 @@ const WellnessEntry = sequelize.define("WellnessEntry", {
   submission_date: { type: DataTypes.DATEONLY, allowNull: false }
 }, {
   tableName: "wellness_entries",
+  // Defect 5: schema.sql does not define Sequelize timestamp columns.
+  timestamps: false,
   indexes: [
     { fields: ["department_id", "submission_date"] },
     { fields: ["user_id", "submission_date"] }

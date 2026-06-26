@@ -9,6 +9,8 @@ const User = sequelize.define("User", {
   role: { type: DataTypes.ENUM("employee", "manager", "admin"), allowNull: false, defaultValue: "employee" }
 }, {
   tableName: "users",
+  // Defect 5: schema.sql does not define Sequelize timestamp columns.
+  timestamps: false,
   indexes: [{ fields: ["email"], unique: true }, { fields: ["role"] }]
 });
 

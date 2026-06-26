@@ -1,6 +1,8 @@
 const { Op } = require("sequelize");
 const { WellnessEntry } = require("../models/WellnessEntry");
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 function assertRange(payload, field, minimum, maximum) {
   const value = Number(payload[field]);
   if (!Number.isFinite(value) || value < minimum || value > maximum) {
@@ -11,8 +13,13 @@ function assertRange(payload, field, minimum, maximum) {
 
 const wellnessService = {
   async createEntry(payload, user) {
+    // Defect 3: require the authenticated session identity and ignore payload user_id values.
+    if (!user) {
+      throw new Error("Authentication required.");
+    }
+
     const entry = {
-      user_id: user ? user.id : Number(payload.user_id),
+      user_id: user.id,
       department_id: assertRange(payload, "department_id", 1, Number.MAX_SAFE_INTEGER),
       stress_level: assertRange(payload, "stress_level", 1, 10),
       work_hours: assertRange(payload, "work_hours", 0, 24),
@@ -22,8 +29,8 @@ const wellnessService = {
       submission_date: payload.submission_date || new Date().toISOString().slice(0, 10)
     };
 
-    if (!entry.user_id || !entry.mood) {
-      throw new Error("user_id and mood are required.");
+    if (!entry.mood) {
+      throw new Error("mood is required.");
     }
     return WellnessEntry.create(entry);
   },
@@ -35,8 +42,20 @@ const wellnessService = {
     }
     if (filters.from || filters.to) {
       where.submission_date = {};
-      if (filters.from) where.submission_date[Op.gte] = filters.from;
-      if (filters.to) where.submission_date[Op.lte] = filters.to;
+      if (filters.from) {
+        // Defect 4: reject malformed dates before Sequelize sends them to PostgreSQL.
+        if (!ISO_DATE.test(filters.from)) {
+          throw new Error("from must be an ISO date string (YYYY-MM-DD).");
+        }
+        where.submission_date[Op.gte] = filters.from;
+      }
+      if (filters.to) {
+        // Defect 4: apply the same guard to the upper date bound.
+        if (!ISO_DATE.test(filters.to)) {
+          throw new Error("to must be an ISO date string (YYYY-MM-DD).");
+        }
+        where.submission_date[Op.lte] = filters.to;
+      }
     }
 
     return WellnessEntry.findAll({

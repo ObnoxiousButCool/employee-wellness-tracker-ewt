@@ -11,8 +11,13 @@ const wellnessController = {
   },
 
   async dashboard(request, response) {
-    const metrics = await wellnessService.getDashboardMetrics(request.query);
-    response.json(metrics);
+    try {
+      const metrics = await wellnessService.getDashboardMetrics(request.query);
+      response.json(metrics);
+    } catch (error) {
+      // Defect 4: return validation failures without leaking stack traces.
+      response.status(400).json({ error: error.message });
+    }
   }
 };
 
